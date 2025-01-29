@@ -77,6 +77,7 @@ pub async fn reset_btn(btn: GpioPin<32>) {
     loop {
         if input_btn.is_low() {
             game::RESET_GAME.swap(true, Ordering::Relaxed);
+            Timer::after(Duration::from_millis(100)).await;
         }
 
         Timer::after(Duration::from_millis(50)).await;

@@ -1,5 +1,5 @@
+use core::fmt::Write;
 use core::sync::atomic::{AtomicBool, Ordering};
-
 use embassy_time::{Duration, Timer};
 use embedded_graphics::{
     mono_font::{ascii::FONT_6X10, MonoTextStyleBuilder},
@@ -9,8 +9,7 @@ use embedded_graphics::{
     text::{Baseline, Text},
 };
 use esp_hal::{i2c::master::I2c, rng::Rng};
-use esp_println::println;
-use heapless::Vec;
+use heapless::{String, Vec};
 use ssd1306::{
     mode::BufferedGraphicsModeAsync, prelude::I2CInterface, size::DisplaySize128x64, Ssd1306Async,
 };
@@ -139,12 +138,13 @@ impl<'a> Game<'a> {
     pub async fn start(&mut self) {
         self.clear_display().await;
         self.display.flush().await.unwrap();
+        let mut title_buff: String<64> = String::new();
 
         loop {
+            title_buff.clear();
             match self.state {
                 GameState::Menu => {
                     if RESET_GAME.swap(false, Ordering::Relaxed) {
-                        println!("Resetting Game");
                         self.reset_game();
                         self.state = GameState::Playing;
                     }
@@ -174,18 +174,18 @@ impl<'a> Game<'a> {
                 GameState::Menu => self.draw_title_text("Press to start..."),
                 GameState::Playing => self.draw_game().await,
                 GameState::LevelCompleted => {
-                    // self.draw_title_text(&format!("You win! {} score", self.score))
-                    self.draw_title_text("You Win");
+                    write!(title_buff, "You win {} score", self.score).unwrap();
+                    self.draw_title_text(&title_buff);
                 }
                 GameState::Dead => {
-                    // self.draw_title_text(&format!("You died! {} score", self.score))
-                    self.draw_title_text("You died");
+                    write!(title_buff, "You died {} score", self.score).unwrap();
+                    self.draw_title_text(&title_buff);
                 }
             }
 
             self.display.flush().await.unwrap();
 
-            Timer::after(Duration::from_millis(100)).await;
+            Timer::after(Duration::from_millis(10)).await;
         }
     }
 
