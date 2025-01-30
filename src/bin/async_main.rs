@@ -36,6 +36,7 @@ async fn main(spawner: Spawner) {
 
     info!("Embassy initialized!");
 
+    // Track Joystick movements in background
     spawner
         .spawn(joystick::track_joystick(
             peripherals.GPIO13,
@@ -44,8 +45,10 @@ async fn main(spawner: Spawner) {
         ))
         .unwrap();
 
+    // Track Joystick button state
     spawner.spawn(reset_btn(peripherals.GPIO32)).unwrap();
 
+    // Initialize the OLED Display
     let i2c = esp_hal::i2c::master::I2c::new(
         peripherals.I2C0,
         esp_hal::i2c::master::Config {
@@ -56,7 +59,6 @@ async fn main(spawner: Spawner) {
     .with_scl(peripherals.GPIO18)
     .with_sda(peripherals.GPIO23)
     .into_async();
-
     let interface = I2CDisplayInterface::new(i2c);
     // initialize the display
     let mut display = Ssd1306Async::new(interface, DisplaySize128x64, DisplayRotation::Rotate0)
@@ -65,11 +67,12 @@ async fn main(spawner: Spawner) {
 
     let rng = Rng::new(peripherals.RNG);
 
+    // Initialize the Game
     let mut game = Game::new(display, rng);
     game.start().await;
 }
 
-// To Spawn balls when button pressed
+// To Reset the game
 #[embassy_executor::task]
 pub async fn reset_btn(btn: GpioPin<32>) {
     let input_btn = Input::new(btn, Pull::Up);
