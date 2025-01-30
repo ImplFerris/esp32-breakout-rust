@@ -1,3 +1,7 @@
+
+
+https://github.com/user-attachments/assets/d0453b03-00d2-44f5-882a-32324a101735
+
 # Breakout Game on ESP32 with OLED Display, written in Rust
  
  Breakout Game written in Rust for the ESP32 with an OLED display, using the Embassy framework.
@@ -31,6 +35,9 @@ You can refer to the following tutorials in the "impl Rust on ESP32" book to lea
 - [Using Joystick Module with ESP32](https://esp32.implrust.com/joystick/index.html)
 - [Using OLED Display Module with ESP32](https://esp32.implrust.com/oled/index.html)
 
+## Preview of the game.  
+
+https://github.com/user-attachments/assets/a0e2087a-8a47-42d8-a9c2-18bf00fc5f8f
 
 ## TODO
 1. Adjust the title text alignment
