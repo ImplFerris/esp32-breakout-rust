@@ -46,7 +46,9 @@ async fn main(spawner: Spawner) {
         .unwrap();
 
     // Track Joystick button state
-    spawner.spawn(reset_btn(peripherals.GPIO32)).unwrap();
+    spawner
+        .spawn(joystick::reset_btn(peripherals.GPIO32))
+        .unwrap();
 
     // Initialize the OLED Display
     let i2c = esp_hal::i2c::master::I2c::new(
@@ -70,19 +72,4 @@ async fn main(spawner: Spawner) {
     // Initialize the Game
     let mut game = Game::new(display, rng);
     game.start().await;
-}
-
-// To Reset the game
-#[embassy_executor::task]
-pub async fn reset_btn(btn: GpioPin<32>) {
-    let input_btn = Input::new(btn, Pull::Up);
-
-    loop {
-        if input_btn.is_low() {
-            game::RESET_GAME.swap(true, Ordering::Relaxed);
-            Timer::after(Duration::from_millis(100)).await;
-        }
-
-        Timer::after(Duration::from_millis(50)).await;
-    }
 }

@@ -3,15 +3,19 @@ use core::sync::atomic::Ordering;
 use embassy_time::{Duration, Timer};
 use esp_hal::{
     analog::adc::{Adc, AdcConfig, Attenuation},
-    gpio::GpioPin,
+    gpio::{GpioPin, Input, Pull},
     peripherals::ADC2,
     prelude::nb,
 };
 
-use crate::player::{PlayerDirection, PLAYER_DIRECTION};
+use crate::{
+    game,
+    player::{PlayerDirection, PLAYER_DIRECTION},
+};
 
 const VRX_PIN: u8 = 13;
 const VRY_PIN: u8 = 14;
+const BTN_PIN: u8 = 32;
 
 #[embassy_executor::task]
 pub async fn track_joystick(_vrx: GpioPin<VRX_PIN>, vry: GpioPin<VRY_PIN>, adc: ADC2) {
@@ -32,6 +36,21 @@ pub async fn track_joystick(_vrx: GpioPin<VRX_PIN>, vry: GpioPin<VRY_PIN>, adc: 
             PLAYER_DIRECTION.store(PlayerDirection::Right, Ordering::Relaxed);
         } else {
             PLAYER_DIRECTION.store(PlayerDirection::Idle, Ordering::Relaxed);
+        }
+
+        Timer::after(Duration::from_millis(50)).await;
+    }
+}
+
+// To Reset the game
+#[embassy_executor::task]
+pub async fn reset_btn(btn: GpioPin<BTN_PIN>) {
+    let input_btn = Input::new(btn, Pull::Up);
+
+    loop {
+        if input_btn.is_low() {
+            game::RESET_GAME.swap(true, Ordering::Relaxed);
+            Timer::after(Duration::from_millis(100)).await;
         }
 
         Timer::after(Duration::from_millis(50)).await;

@@ -169,6 +169,8 @@ impl<'a> Game<'a> {
                     self.blocks.retain(|block| block.lives > 0);
                     if self.blocks.is_empty() {
                         self.state = GameState::LevelCompleted;
+                        // Clear any accident click during the game play
+                        RESET_GAME.store(false, Ordering::Relaxed);
                     }
                 }
                 _ => {
@@ -184,11 +186,11 @@ impl<'a> Game<'a> {
                 GameState::Menu => self.draw_title_text("Press to start..."),
                 GameState::Playing => self.draw_game().await,
                 GameState::LevelCompleted => {
-                    write!(title_buff, "You win {} score", self.score).unwrap();
+                    write!(title_buff, "You win! Score: {}", self.score).unwrap();
                     self.draw_title_text(&title_buff);
                 }
                 GameState::Dead => {
-                    write!(title_buff, "You died {} score", self.score).unwrap();
+                    write!(title_buff, "You died! Score: {}", self.score).unwrap();
                     self.draw_title_text(&title_buff);
                 }
             }
@@ -204,18 +206,20 @@ impl<'a> Game<'a> {
             .font(&FONT_6X10)
             .text_color(BinaryColor::On)
             .build();
-        Text::with_baseline(
-            title,
-            Point::new(
-                // self.display.dimensions().0 as i32 / 2,
-                5,
-                self.display.dimensions().1 as i32 / 2,
-            ),
-            text_style,
-            Baseline::Top,
-        )
-        .draw(&mut self.display)
-        .unwrap();
+
+        let text_width = title.len() as i32 * FONT_6X10.character_size.width as i32;
+        let text_height = FONT_6X10.character_size.height as i32;
+
+        // Get display dimensions
+        let (width, height) = self.display.dimensions();
+
+        // Calculate top-left position to center the text
+        let x = (width as i32 - text_width) / 2;
+        let y = (height as i32 - text_height) / 2;
+
+        Text::with_baseline(title, Point::new(x, y), text_style, Baseline::Top)
+            .draw(&mut self.display)
+            .unwrap();
     }
 
     fn remove_balls(&mut self) {
@@ -244,6 +248,8 @@ impl<'a> Game<'a> {
                 .unwrap();
             if self.player_lives == 0 {
                 self.state = GameState::Dead;
+                // Clear any accident click during the game play
+                RESET_GAME.store(false, Ordering::Relaxed);
             }
         }
     }
