@@ -1,7 +1,3 @@
-
-
-https://github.com/user-attachments/assets/d0453b03-00d2-44f5-882a-32324a101735
-
 # Breakout Game on ESP32 with OLED Display, written in Rust
  
  Breakout Game written in Rust for the ESP32 with an OLED display, using the Embassy framework.
