@@ -5,7 +5,7 @@ use embedded_graphics::{
     mono_font::{ascii::FONT_6X10, MonoTextStyleBuilder},
     pixelcolor::BinaryColor,
     prelude::*,
-    primitives::{PrimitiveStyleBuilder, Rectangle},
+    primitives::Rectangle,
     text::{Baseline, Text},
 };
 use esp_hal::{i2c::master::I2c, rng::Rng};
@@ -17,7 +17,7 @@ use ssd1306::{
 use crate::{
     ball::Ball,
     block::{Block, BLOCK_SIZE},
-    player::{Player, PlayerDirection, PLAYER_DIRECTION, PLAYER_SIZE, PLAYER_VELOCITY},
+    player::{Player, PLAYER_SIZE},
 };
 
 const MAX_BALLS: usize = 5;
@@ -53,28 +53,38 @@ pub struct Game<'a> {
 
 impl<'a> Game<'a> {
     pub fn new(display: DisplayType<'a>, mut rng: Rng) -> Self {
-        let screen_dims = display.dimensions();
+        let (player, blocks, balls) = Game::init_game_state(&display, &mut rng);
         Self {
             state: GameState::Menu,
             score: 0,
             player_lives: PLAYER_LIVES,
-            player: Game::spawn_player(&display),
-            blocks: Game::init_blocks(),
-            balls: Game::init_balls(&mut rng, screen_dims.0 as i32, screen_dims.1 as i32),
+            player,
+            blocks,
+            balls,
             display,
             rng,
         }
     }
 
+    fn init_game_state(
+        display: &DisplayType<'a>,
+        rng: &mut Rng,
+    ) -> (Player, Vec<Block, MAX_BLOCKS>, Vec<Ball, MAX_BALLS>) {
+        let screen_dims = display.dimensions();
+        (
+            Game::spawn_player(display),
+            Game::init_blocks(),
+            Game::init_balls(rng, screen_dims.0 as i32, screen_dims.1 as i32),
+        )
+    }
+
     pub fn reset_game(&mut self) {
         self.player_lives = PLAYER_LIVES;
         self.score = 0;
-        self.player = Game::spawn_player(&self.display);
-
-        let screen_dims = self.display.dimensions();
-
-        self.balls = Game::init_balls(&mut self.rng, screen_dims.0 as i32, screen_dims.1 as i32);
-        self.blocks = Game::init_blocks();
+        let (player, blocks, balls) = Game::init_game_state(&self.display, &mut self.rng);
+        self.player = player;
+        self.blocks = blocks;
+        self.balls = balls;
     }
 
     pub fn init_balls(
@@ -128,9 +138,9 @@ impl<'a> Game<'a> {
     async fn draw_game(&mut self) {
         self.clear_display().await;
 
-        self.draw_player().await;
-        self.draw_blocks().await;
-        self.draw_balls().await;
+        self.player.draw(&mut self.display);
+        self.draw_blocks();
+        self.draw_balls();
         // self.print_score();
         // self.print_lives();
     }
@@ -150,8 +160,8 @@ impl<'a> Game<'a> {
                     }
                 }
                 GameState::Playing => {
-                    self.move_player().await;
-                    self.move_balls().await;
+                    self.player.update(&mut self.display);
+                    self.move_balls();
 
                     self.collison_handle();
                     self.remove_balls();
@@ -237,30 +247,8 @@ impl<'a> Game<'a> {
             }
         }
     }
-    async fn move_player(&mut self) {
-        let direction = PLAYER_DIRECTION.load(Ordering::Relaxed);
 
-        match direction {
-            PlayerDirection::Idle => {}
-            PlayerDirection::Left => {
-                // println!("Moving Left");
-                let new_x = (self.player.rect.top_left.x - PLAYER_VELOCITY).max(0);
-
-                self.player.rect =
-                    Rectangle::new(Point::new(new_x, self.player.rect.top_left.y), PLAYER_SIZE);
-            }
-            PlayerDirection::Right => {
-                // println!("Moving Right");
-                let right_edge = self.display.dimensions().0 as i32 - PLAYER_SIZE.width as i32;
-                let new_x = (self.player.rect.top_left.x + PLAYER_VELOCITY).min(right_edge);
-
-                self.player.rect =
-                    Rectangle::new(Point::new(new_x, self.player.rect.top_left.y), PLAYER_SIZE);
-            }
-        };
-    }
-
-    async fn move_balls(&mut self) {
+    fn move_balls(&mut self) {
         for ball in self.balls.iter_mut() {
             ball.update();
         }
@@ -289,42 +277,15 @@ impl<'a> Game<'a> {
         // }
     }
 
-    async fn draw_player(&mut self) {
-        let style = PrimitiveStyleBuilder::new()
-            .fill_color(BinaryColor::On)
-            .build();
-
-        self.player
-            .rect
-            .into_styled(style)
-            .draw(&mut self.display)
-            .unwrap();
-    }
-
-    async fn draw_blocks(&mut self) {
+    fn draw_blocks(&mut self) {
         for block in self.blocks.iter() {
-            let style = PrimitiveStyleBuilder::new()
-                .fill_color(BinaryColor::On)
-                .build();
-
-            block
-                .rect
-                .into_styled(style)
-                .draw(&mut self.display)
-                .unwrap();
+            block.draw(&mut self.display);
         }
     }
 
-    async fn draw_balls(&mut self) {
+    fn draw_balls(&mut self) {
         for ball in self.balls.iter() {
-            let style = PrimitiveStyleBuilder::new()
-                .fill_color(BinaryColor::On)
-                .build();
-
-            ball.rect
-                .into_styled(style)
-                .draw(&mut self.display)
-                .unwrap();
+            ball.draw(&mut self.display);
         }
     }
 }

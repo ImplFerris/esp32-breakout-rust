@@ -1,8 +1,11 @@
 use embedded_graphics::{
-    prelude::{Point, Size, Transform},
-    primitives::Rectangle,
+    pixelcolor::BinaryColor,
+    prelude::*,
+    primitives::{PrimitiveStyleBuilder, Rectangle},
 };
 use esp_hal::rng::Rng;
+
+use crate::game::DisplayType;
 
 pub const BALL_SIZE: Size = Size::new(4, 4);
 pub const BALL_SPEED: i32 = 2;
@@ -41,5 +44,13 @@ impl Ball {
         if self.rect.top_left.y < 0 {
             self.vel.y = 1;
         }
+    }
+
+    pub fn draw(&self, display: &mut DisplayType) {
+        let style = PrimitiveStyleBuilder::new()
+            .fill_color(BinaryColor::On)
+            .build();
+
+        self.rect.into_styled(style).draw(display).unwrap();
     }
 }
