@@ -215,14 +215,18 @@ impl<'a> Game<'a> {
         let remove_balls = balls_len - self.balls.len();
         if remove_balls > 0 && self.balls.is_empty() {
             self.player_lives = self.player_lives.saturating_sub(1);
-            // To position the newly spawned ball in the center of Player
-            // let player_center = self.player.rect.w * 0.5 + BALL_SIZE * 0.5;
-            // self.balls.push(Ball::new(
-            //     self.player.rect.point() + vec2(player_center, -50.),
-            // ));
+
             let screen_dims = self.display.dimensions();
             let screen_width = screen_dims.0 as i32;
-            let ball_pos = Point::new(screen_width / 2, screen_dims.1 as i32 / 2);
+            let screen_height = screen_dims.1 as i32;
+
+            // Spawn ball just above the player and center of the player
+            let player_half = PLAYER_SIZE.width / 2;
+            let ball_pos = self.player.rect.top_left
+                + Point::new(
+                    player_half as i32,
+                    self.player.rect.top_left.y - screen_height,
+                );
 
             self.balls
                 .push(Ball::new(ball_pos, &mut self.rng, screen_width))
