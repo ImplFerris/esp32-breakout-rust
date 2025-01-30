@@ -1,20 +1,10 @@
 #![no_std]
 #![no_main]
 
-use core::sync::atomic::Ordering;
-
 use embassy_executor::Spawner;
-use embassy_time::{Duration, Timer};
-use esp32_breakout_rust::{
-    game::{self, Game},
-    joystick,
-};
+use esp32_breakout_rust::{game::Game, joystick};
 use esp_backtrace as _;
-use esp_hal::{
-    gpio::{GpioPin, Input, Pull},
-    prelude::*,
-    rng::Rng,
-};
+use esp_hal::{prelude::*, rng::Rng};
 use log::info;
 use ssd1306::{
     mode::DisplayConfigAsync, prelude::DisplayRotation, size::DisplaySize128x64,
