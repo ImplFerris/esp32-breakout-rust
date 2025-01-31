@@ -21,10 +21,12 @@ pub const PLAYER_SIZE: Size = Size::new(40, 5);
 pub const PLAYER_VELOCITY: i32 = 5;
 pub static PLAYER_DIRECTION: AtomicPlayerDirection =
     AtomicPlayerDirection::new(PlayerDirection::Idle);
+const PLAYER_LIVES: u8 = 3;
 
 pub struct Player {
     pub rect: Rectangle,
     pub direction: PlayerDirection,
+    pub lives: u8,
 }
 
 impl Player {
@@ -32,6 +34,7 @@ impl Player {
         Self {
             rect: Rectangle::new(Point::new(x, y), PLAYER_SIZE),
             direction: PlayerDirection::Idle,
+            lives: PLAYER_LIVES,
         }
     }
 

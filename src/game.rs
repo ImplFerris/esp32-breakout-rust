@@ -1,6 +1,8 @@
 use core::fmt::Write;
 use core::sync::atomic::{AtomicBool, Ordering};
 use embassy_time::{Duration, Timer};
+use embedded_graphics::image::{Image, ImageRaw};
+use embedded_graphics::mono_font::ascii::FONT_5X8;
 use embedded_graphics::{
     mono_font::{ascii::FONT_6X10, MonoTextStyleBuilder},
     pixelcolor::BinaryColor,
@@ -22,7 +24,7 @@ use crate::{
 
 const MAX_BALLS: usize = 5;
 const MAX_BLOCKS: usize = 50;
-const PLAYER_LIVES: u8 = 3;
+
 pub type DisplayType<'a> = Ssd1306Async<
     I2CInterface<I2c<'a, esp_hal::Async>>,
     DisplaySize128x64,
@@ -30,6 +32,8 @@ pub type DisplayType<'a> = Ssd1306Async<
 >;
 
 pub static RESET_GAME: AtomicBool = AtomicBool::new(false);
+
+const HEART_SPRITE: [u8; 8] = [0x00, 0x6e, 0xff, 0xef, 0x7e, 0x3c, 0x18, 0x00];
 
 #[derive(Default)]
 pub enum GameState {
@@ -43,7 +47,6 @@ pub enum GameState {
 pub struct Game<'a> {
     state: GameState,
     score: u32,
-    player_lives: u8,
     player: Player,
     blocks: Vec<Block, MAX_BLOCKS>,
     balls: Vec<Ball, MAX_BALLS>,
@@ -57,7 +60,6 @@ impl<'a> Game<'a> {
         Self {
             state: GameState::Menu,
             score: 0,
-            player_lives: PLAYER_LIVES,
             player,
             blocks,
             balls,
@@ -79,7 +81,6 @@ impl<'a> Game<'a> {
     }
 
     pub fn reset_game(&mut self) {
-        self.player_lives = PLAYER_LIVES;
         self.score = 0;
         let (player, blocks, balls) = Game::init_game_state(&self.display, &mut self.rng);
         self.player = player;
@@ -106,7 +107,10 @@ impl<'a> Game<'a> {
         let (cols, rows) = (6, 5);
         let padding = 1;
         let total_block_size = BLOCK_SIZE + Size::new(padding, padding);
-        let board_start_pos = Point::new(1, 1);
+
+        let text_height = FONT_5X8.character_size.height as i32;
+
+        let board_start_pos = Point::new(1, text_height);
         for i in 0..cols * rows {
             let block_x = (i % cols) * total_block_size.width as i32;
             let block_y = (i / cols) * total_block_size.height as i32;
@@ -141,8 +145,8 @@ impl<'a> Game<'a> {
         self.player.draw(&mut self.display);
         self.draw_blocks();
         self.draw_balls();
-        // self.print_score();
-        // self.print_lives();
+        self.print_score();
+        self.print_lives();
     }
 
     pub async fn start(&mut self) {
@@ -201,6 +205,33 @@ impl<'a> Game<'a> {
         }
     }
 
+    fn print_score(&mut self) {
+        let mut score_text: String<16> = String::new();
+        write!(score_text, "Score: {}", self.score).unwrap();
+
+        let text_style = MonoTextStyleBuilder::new()
+            .font(&FONT_5X8)
+            .text_color(BinaryColor::On)
+            .build();
+
+        Text::with_baseline(&score_text, Point::new(0, 0), text_style, Baseline::Top)
+            .draw(&mut self.display)
+            .unwrap();
+    }
+
+    fn print_lives(&mut self) {
+        let img_width: i32 = 8;
+        let raw_image = ImageRaw::<BinaryColor>::new(&HEART_SPRITE, img_width as u32);
+
+        let width = self.display.dimensions().0;
+        let x = (width as i32 - img_width * self.player.lives as i32) - img_width;
+
+        for i in 0..self.player.lives {
+            let image = Image::new(&raw_image, Point::new(x + (i as i32 * img_width), 0));
+            image.draw(&mut self.display).unwrap();
+        }
+    }
+
     fn draw_title_text(&mut self, title: &str) {
         let text_style = MonoTextStyleBuilder::new()
             .font(&FONT_6X10)
@@ -228,7 +259,7 @@ impl<'a> Game<'a> {
             .retain(|ball| ball.rect.top_left.y < self.display.dimensions().1 as i32);
         let remove_balls = balls_len - self.balls.len();
         if remove_balls > 0 && self.balls.is_empty() {
-            self.player_lives = self.player_lives.saturating_sub(1);
+            self.player.lives = self.player.lives.saturating_sub(1);
 
             let screen_dims = self.display.dimensions();
             let screen_width = screen_dims.0 as i32;
@@ -246,7 +277,7 @@ impl<'a> Game<'a> {
                 .push(Ball::new(ball_pos, &mut self.rng, screen_width))
                 .map_err(|_| "Failed to add Ball")
                 .unwrap();
-            if self.player_lives == 0 {
+            if self.player.lives == 0 {
                 self.state = GameState::Dead;
                 // Clear any accident click during the game play
                 RESET_GAME.store(false, Ordering::Relaxed);
